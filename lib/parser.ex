@@ -1,73 +1,57 @@
 defmodule Parser do
-  @docno_regex ~r/<DOCNO>(.*?)<\/DOCNO>/
+  @docno_regex ~r/<DOCNO>\s*([^<]*)/i
   @doc_regex ~r/<\/DOC>/
   @token_regex ~r/[^a-zA-Z]+/
+  @line_regex ~r/(<\/DOC>)|(<DOCNO>)|([a-zA-Z\-09]+)/
 
   def parse() do
-    content = File.read!("../wsj.xml")
-
+    file = "wsj"
+    content = File.read!("./input/#{file}.xml")
     lines = String.split(content, "\n", trim: true)
-    {:ok, words_file} = File.open("./wsj.out", [:write])
-    {:ok, docnos_file} = File.open("./docnos.out", [:write])
 
-    out =
+    result =
       lines
       |> Flow.from_enumerable()
-      |> Flow.map(&Parser.do_parse/1)
+      |> Flow.map(&do_parse/1)
       |> Enum.to_list()
+      |> Enum.reduce(%{docnos: [], words: []}, &accumulate_results/2)
 
-    Enum.each(out, fn
-      [docno: docno_value] when docno_value != [] ->
-        IO.puts(docnos_file, docno_value)
-
-      element when element != [] ->
-        Enum.each(element, fn word ->
-          word = if word == "\n", do: "", else: word
-          IO.puts(words_file, word)
-        end)
-
-      _ ->
-        nil
-    end)
-
-    File.close(words_file)
-    File.close(docnos_file)
-    out
+    File.write!("./output/#{file}_docnos.out", Enum.reverse(result.docnos))
+    File.write!("./output/#{file}_words.out", Enum.reverse(result.words))
+    IO.inspect(length(result.docnos))
   end
 
-  # def extract_docnos(data) do
-  #   Enum.reduce(data, [], fn
-  #     [docno: docno_value], acc -> acc ++ docno_value
-  #     _, acc -> acc
-  #   end)
-  # end
-
-  def do_parse(content) do
+  defp do_parse(content) do
     cond do
       Regex.match?(@docno_regex, content) ->
-        [docno: Regex.run(@docno_regex, content, capture: :all_but_first, dotall: true)]
+        case Regex.run(@docno_regex, content, capture: :all_but_first, dotall: true) do
+          [docno] -> {:docno, [docno]}
+          _ -> nil
+        end
 
       Regex.match?(@doc_regex, content) ->
-        ["\n"]
+        {:words, [""]}
 
       true ->
-        content
-        |> String.split(@token_regex, trim: true, include_captures: false)
-        |> Enum.reduce([], fn word, acc ->
-          case word do
-            "DOC" -> acc
-            "HL" -> acc
-            "DD" -> acc
-            "SO" -> acc
-            "IN" -> acc
-            "DATELINE" -> acc
-            "TEXT" -> acc
-            "" -> acc
-            [] -> acc
-            _ -> [String.downcase(word) | acc]
-          end
-        end)
-        |> Enum.reverse()
+        words =
+          content
+          |> String.split(@token_regex, trim: true, include_captures: false)
+          |> Enum.reject(&(&1 in ["", "DOC", "HL", "DD", "SO", "IN", "DATELINE", "TEXT"]))
+          |> Enum.map(&String.downcase/1)
+
+        if Enum.empty?(words), do: nil, else: {:words, words}
     end
+  end
+
+  defp accumulate_results(nil, acc), do: acc
+
+  defp accumulate_results({:docno, docno}, %{docnos: docnos, words: words} = acc) do
+    updated_docnos = [docno, "\n" | docnos]
+    %{acc | docnos: updated_docnos}
+  end
+
+  defp accumulate_results({:words, words_new}, %{docnos: docnos, words: words} = acc) do
+    updated_words = Enum.reduce(words_new, words, fn word, acc -> [word, "\n" | acc] end)
+    %{acc | words: updated_words}
   end
 end
