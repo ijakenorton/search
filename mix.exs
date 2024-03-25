@@ -15,7 +15,7 @@ defmodule SearchEngine.MixProject do
   def application do
     [
       mod: {SearchEngine, []},
-      extra_applications: [:logger]
+      extra_applications: [:logger, :observer]
     ]
   end
 

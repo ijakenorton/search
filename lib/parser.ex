@@ -1,57 +1,102 @@
 defmodule Parser do
   @docno_regex ~r/<DOCNO>\s*([^<]*)/i
-  @doc_regex ~r/<\/DOC>/
   @token_regex ~r/[^a-zA-Z]+/
-  @line_regex ~r/(<\/DOC>)|(<DOCNO>)|([a-zA-Z\-09]+)/
+
+  import FileHandling
 
   def parse() do
-    file = "wsj"
-    content = File.read!("./input/#{file}.xml")
-    lines = String.split(content, "\n", trim: true)
+    documents =
+      File.read!("./input/#{SearchEngine.file_name()}.xml")
+      |> preprocess_docnos()
+      |> String.split(~r/<\s*\/DOC\s*>/, trim: true)
+      |> Enum.map(&String.split(&1, "\n", trim: true))
+      |> Enum.flat_map(&process_document/1)
+
+    # result =
+    #   documents
+    #   |> Flow.from_enumerable()
+    #   |> Flow.flat_map(&process_document/1)
+    #   |> Enum.to_list()
+
+    File.write!("./output/#{SearchEngine.file_name()}_combined.out", documents)
+    # File.write!("./output/#{SearchEngine.file_name()}_combined.out", result)
+  end
+
+  def make_dictionary() do
+    documents =
+      File.read!("./input/#{SearchEngine.file_name()}.xml")
+      |> preprocess_docnos()
+      |> String.split(~r/<\s*\/DOC\s*>/, trim: true)
+      |> Enum.map(&String.split(&1, "\n", trim: true))
 
     result =
-      lines
+      documents
       |> Flow.from_enumerable()
-      |> Flow.map(&do_parse/1)
+      |> Flow.flat_map(&process_to_dictionary(&1))
       |> Enum.to_list()
-      |> Enum.reduce(%{docnos: [], words: []}, &accumulate_results/2)
+      |> Enum.uniq()
+      |> Enum.sort(fn a, b -> a - b end)
+      |> Enum.join("\n")
 
-    File.write!("./output/#{file}_docnos.out", Enum.reverse(result.docnos))
-    File.write!("./output/#{file}_words.out", Enum.reverse(result.words))
-    IO.inspect(length(result.docnos))
+    File.write!(
+      "./output/#{SearchEngine.file_name()}_dictionary.out",
+      result
+    )
   end
 
-  defp do_parse(content) do
-    cond do
-      Regex.match?(@docno_regex, content) ->
-        case Regex.run(@docno_regex, content, capture: :all_but_first, dotall: true) do
-          [docno] -> {:docno, [docno]}
-          _ -> nil
+  def preprocess_docnos(content) do
+    Regex.replace(~r/<DOCNO>\s*\n(.*?)\n\s*<\/DOCNO>/ism, content, fn _match, docno_content ->
+      "<DOCNO>#{String.trim(docno_content)}</DOCNO>"
+    end)
+  end
+
+  defp process_to_dictionary(doc_lines) do
+    Enum.flat_map(doc_lines, fn
+      content ->
+        match = Regex.scan(@docno_regex, content, capture: :all_but_first, trim: true)
+
+        case match do
+          [_] ->
+            []
+
+          _ ->
+            content |> do_process_tokens()
         end
-
-      Regex.match?(@doc_regex, content) ->
-        {:words, [""]}
-
-      true ->
-        words =
-          content
-          |> String.split(@token_regex, trim: true, include_captures: false)
-          |> Enum.reject(&(&1 in ["", "DOC", "HL", "DD", "SO", "IN", "DATELINE", "TEXT"]))
-          |> Enum.map(&String.downcase/1)
-
-        if Enum.empty?(words), do: nil, else: {:words, words}
-    end
+    end)
   end
 
-  defp accumulate_results(nil, acc), do: acc
+  defp process_document(doc_lines) do
+    Enum.flat_map(doc_lines, fn
+      content ->
+        match = Regex.scan(@docno_regex, content, capture: :all_but_first, trim: true)
 
-  defp accumulate_results({:docno, docno}, %{docnos: docnos, words: words} = acc) do
-    updated_docnos = [docno, "\n" | docnos]
-    %{acc | docnos: updated_docnos}
+        case match do
+          [docno] ->
+            ["\n", docno, "\n"]
+
+          _ ->
+            content |> do_process_tokens()
+        end
+    end)
   end
 
-  defp accumulate_results({:words, words_new}, %{docnos: docnos, words: words} = acc) do
-    updated_words = Enum.reduce(words_new, words, fn word, acc -> [word, "\n" | acc] end)
-    %{acc | words: updated_words}
+  defp do_process_tokens(content) do
+    content
+    |> String.split(@token_regex, trim: true, include_captures: false)
+    |> Enum.flat_map(fn word ->
+      case word do
+        "" -> []
+        "DOC" -> []
+        "DOCNO" -> []
+        "WSJ" -> []
+        "HL" -> []
+        "DD" -> []
+        "SO" -> []
+        "IN" -> []
+        "DATELINE" -> []
+        "TEXT" -> []
+        _ -> [String.downcase(word), "\n"]
+      end
+    end)
   end
 end
