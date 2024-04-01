@@ -1,83 +1,34 @@
 defmodule Parser do
+  import Serialization
   @docno_regex ~r/<DOCNO>\s*([^<]*)/i
   @token_regex ~r/[^a-zA-Z]+/
 
-  import FileHandling
-
   def parse() do
+    IO.puts("Parsing...")
+
     documents =
       File.read!("./input/#{SearchEngine.file_name()}.xml")
       |> preprocess_docnos()
-      |> String.split(~r/<\s*\/DOC\s*>/, trim: true)
-      |> Enum.map(&String.split(&1, "\n", trim: true))
-      |> Enum.flat_map(&process_document/1)
-
-    # result =
-    #   documents
-    #   |> Flow.from_enumerable()
-    #   |> Flow.flat_map(&process_document/1)
-    #   |> Enum.to_list()
-
-    File.write!("./output/#{SearchEngine.file_name()}_combined.out", documents)
-    # File.write!("./output/#{SearchEngine.file_name()}_combined.out", result)
-  end
-
-  def make_dictionary() do
-    documents =
-      File.read!("./input/#{SearchEngine.file_name()}.xml")
-      |> preprocess_docnos()
-      |> String.split(~r/<\s*\/DOC\s*>/, trim: true)
-      |> Enum.map(&String.split(&1, "\n", trim: true))
-
-    result =
-      documents
+      |> String.split(~r/<\s*DOC\s*>/, trim: true)
       |> Flow.from_enumerable()
-      |> Flow.flat_map(&process_to_dictionary(&1))
+      |> Flow.map(&parse_doc/1)
       |> Enum.to_list()
-      |> Enum.uniq()
-      |> Enum.sort(fn a, b -> a - b end)
-      |> Enum.join("\n")
+      |> List.flatten()
 
-    File.write!(
-      "./output/#{SearchEngine.file_name()}_dictionary.out",
-      result
-    )
+    IO.puts("Parsed")
+    documents
   end
 
-  def preprocess_docnos(content) do
-    Regex.replace(~r/<DOCNO>\s*\n(.*?)\n\s*<\/DOCNO>/ism, content, fn _match, docno_content ->
-      "<DOCNO>#{String.trim(docno_content)}</DOCNO>"
-    end)
-  end
+  def parse_doc(doc) do
+    [head | tail] = String.split(doc, "\n", trim: true)
+    [[id | _] | _] = Regex.scan(@docno_regex, head, capture: :all_but_first, trim: true)
 
-  defp process_to_dictionary(doc_lines) do
-    Enum.flat_map(doc_lines, fn
-      content ->
-        match = Regex.scan(@docno_regex, content, capture: :all_but_first, trim: true)
+    words =
+      List.foldr(tail, [], fn line, acc ->
+        [do_process_tokens(line) | acc]
+      end)
 
-        case match do
-          [_] ->
-            []
-
-          _ ->
-            content |> do_process_tokens()
-        end
-    end)
-  end
-
-  defp process_document(doc_lines) do
-    Enum.flat_map(doc_lines, fn
-      content ->
-        match = Regex.scan(@docno_regex, content, capture: :all_but_first, trim: true)
-
-        case match do
-          [docno] ->
-            ["\n", docno, "\n"]
-
-          _ ->
-            content |> do_process_tokens()
-        end
-    end)
+    {String.trim(id), words |> List.flatten()}
   end
 
   defp do_process_tokens(content) do
@@ -95,8 +46,43 @@ defmodule Parser do
         "IN" -> []
         "DATELINE" -> []
         "TEXT" -> []
-        _ -> [String.downcase(word), "\n"]
+        _ -> [String.downcase(word)]
       end
+    end)
+  end
+
+  def write_ids(ids_and_lengths) do
+    File.write(FileHandling.make_file_input_string("ids"), serialize_ids(ids_and_lengths))
+  end
+
+  def write_parsed_and_dict_to_file(documents) do
+    IO.puts("writing to file....")
+    {:ok, parsed_fd} = File.open("./output/#{SearchEngine.file_name()}_parsed.out", [:write])
+
+    {:ok, dictionary_fd} =
+      File.open("./output/#{SearchEngine.file_name()}_dictionary.out", [:write])
+
+    dictionary =
+      documents
+      |> Enum.map(fn
+        {id, words} ->
+          IO.write(parsed_fd, "#{id}\n#{Enum.join(words, "\n")}\n\n")
+          words
+      end)
+      |> List.flatten()
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    IO.write(dictionary_fd, Enum.join(dictionary, "\n"))
+
+    Serialization.serialize_to_file(documents, "./output/#{SearchEngine.file_name()}_binary.out")
+    File.close(parsed_fd)
+    File.close(dictionary_fd)
+  end
+
+  def preprocess_docnos(content) do
+    Regex.replace(~r/<DOCNO>\s*\n(.*?)\n\s*<\/DOCNO>/ism, content, fn _match, docno_content ->
+      "<DOCNO>#{String.trim(docno_content)}</DOCNO>"
     end)
   end
 end
