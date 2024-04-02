@@ -1,6 +1,6 @@
 defmodule Serialization do
-  @doc_bit_length 18
-  @frequency_bit_length 14
+  @doc_bit_length 24
+  @frequency_bit_length 32
   def deserialize_postings(data) do
     lengths = deserialize_from_file(FileHandling.make_file_input_string("lengths"))
     words = File.read!(FileHandling.make_file_input_string("dictionary")) |> String.split("\n")
@@ -24,7 +24,7 @@ defmodule Serialization do
   defp do_deserialize_posting(<<>>, _index, array), do: array
 
   defp do_deserialize_posting(
-         <<doc_index::@doc_bit_length, frequency::@frequency_bit_length, rest::bitstring>>,
+         <<doc_index::@doc_bit_length, frequency::float-@frequency_bit_length, rest::bitstring>>,
          index,
          array
        ) do
@@ -39,7 +39,7 @@ defmodule Serialization do
         [
           acc,
           [
-            <<doc_index::@doc_bit_length, frequency::@frequency_bit_length>>
+            <<doc_index::@doc_bit_length, frequency::float-@frequency_bit_length>>
           ]
         ],
         length + trunc((@doc_bit_length + @frequency_bit_length) / 8)

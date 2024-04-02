@@ -8,7 +8,8 @@ defmodule Indexer do
     {words, dict, docs} = load_data()
     IO.inspect(length(words), label: "words")
 
-    postings = array_impl(docs, words, dict)
+    postings = array_impl(docs, words, dict) |> tfidf()
+
     lengths = :array.new(length(words))
 
     {binary, lengths} =
@@ -68,6 +69,35 @@ defmodule Indexer do
       end)
 
     postings
+  end
+
+  def tfidf(postings) do
+    ids = deserialize_ids(File.read!(make_file_input_string("ids")))
+    postings_out = :array.new(:array.size(postings))
+    postings_size = :array.size(postings)
+    docs_size = :array.size(ids)
+
+    postings_out =
+      Enum.reduce(0..(postings_size - 1), postings_out, fn index, acc ->
+        current = :array.get(index, postings)
+        doc_count = length(current)
+
+        scores =
+          current
+          |> Enum.map(fn {id, freq} ->
+            {_, count} = :array.get(id, ids)
+
+            tf = freq / count
+            idf = :math.log10(docs_size / doc_count)
+            {id, tf * idf * 10_000_000_000}
+          end)
+          |> Enum.sort(fn {_, score1}, {_, score2} -> score2 < score1 end)
+
+        :array.set(index, scores, acc)
+      end)
+
+    IO.inspect(postings_out, label: "postings_out")
+    postings_out
   end
 
   def load_data() do

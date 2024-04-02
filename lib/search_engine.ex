@@ -3,14 +3,14 @@ defmodule SearchEngine do
   import Serialization
   @file_name "wsj"
   def main(args) do
-    # IO.read(:stdio, :all)
-    # |> String.split(" ")
-    # |> Enum.map(&String.trim/1)
-    # |> IO.inspect()
+    input =
+      IO.read(:stdio, :all)
+      |> String.split(" ")
+      |> Enum.map(&String.trim/1)
 
     # IO.inspect(args)
-    # setup()
-    # Indexer.index()
+    setup()
+    Indexer.index()
 
     # index =
     #   File.read!(make_file_input_string("serialized"))
@@ -19,7 +19,7 @@ defmodule SearchEngine do
     # IO.inspect(index, label: "index")
 
     # IO.inspect(:array.get(0, index))
-    search("the quick brown fox")
+    # search(input)
   end
 
   def search(query) do
@@ -28,20 +28,27 @@ defmodule SearchEngine do
     lengths = deserialize_from_file(make_file_input_string("lengths"))
     ids = deserialize_ids(File.read!(make_file_input_string("ids")))
 
-    Enum.each(5..10, fn index ->
+    Enum.each(query, fn word ->
+      index = Map.get(dict, word)
       {offset, length} = :array.get(index, lengths)
 
       {:ok, posting} =
         FileReader.read_specific_offset(make_file_input_string("serialized"), offset, length)
 
-      posting
-      |> Serialization.deserialize_posting()
-      |> IO.inspect()
+      posting =
+        posting
+        |> Serialization.deserialize_posting()
+
+      Enum.each(0..(:array.size(posting) - 1), fn index ->
+        {id, freq} = :array.get(index, posting)
+        id = :array.get(id, ids)
+        IO.inspect({id, freq})
+      end)
     end)
 
     # IO.inspect(is_bitstring(posting))
 
-    # IO.inspect(posting, label: "posting")
+    # IO.inspect(posting, label: "posting")k
 
     # query
     # |> String.split(" ")
