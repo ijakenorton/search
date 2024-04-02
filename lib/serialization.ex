@@ -16,22 +16,37 @@ defmodule Serialization do
   def deserialize_posting(posting) do
     do_deserialize_posting(
       posting,
-      0,
-      :array.new(floor(bit_size(posting) / (@doc_bit_length + @frequency_bit_length)))
+      %{}
     )
   end
 
-  defp do_deserialize_posting(<<>>, _index, array), do: array
+  # def deserialize_posting(posting) do
+  #   do_deserialize_posting(
+  #     posting,
+  #     0,
+  #     :array.new(floor(bit_size(posting) / (@doc_bit_length + @frequency_bit_length)))
+  #   )
+  # end
+
+  defp do_deserialize_posting(<<>>, map), do: map
 
   defp do_deserialize_posting(
          <<doc_index::@doc_bit_length, frequency::float-@frequency_bit_length, rest::bitstring>>,
-         index,
-         array
+         map
        ) do
-    combined = {doc_index, frequency}
-    array = :array.set(index, combined, array)
-    do_deserialize_posting(rest, index + 1, array)
+    map = Map.put(map, doc_index, frequency)
+    do_deserialize_posting(rest, map)
   end
+
+  # defp do_deserialize_posting(
+  #        <<doc_index::@doc_bit_length, frequency::float-@frequency_bit_length, rest::bitstring>>,
+  #        index,
+  #        array
+  #      ) do
+  #   combined = {doc_index, frequency}
+  #   array = :array.set(index, combined, array)
+  #   do_deserialize_posting(rest, index + 1, array)
+  # end
 
   def serialize_posting(posting) do
     Enum.reduce(posting, {[], 0}, fn {doc_index, frequency}, {acc, length} ->

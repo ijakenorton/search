@@ -6,11 +6,12 @@ defmodule SearchEngine do
     input =
       IO.read(:stdio, :all)
       |> String.split(" ")
+      |> Enum.map(&String.downcase/1)
       |> Enum.map(&String.trim/1)
 
     # IO.inspect(args)
-    setup()
-    Indexer.index()
+    # setup()
+    # Indexer.index()
 
     # index =
     #   File.read!(make_file_input_string("serialized"))
@@ -19,44 +20,132 @@ defmodule SearchEngine do
     # IO.inspect(index, label: "index")
 
     # IO.inspect(:array.get(0, index))
-    # search(input)
+    search(input)
   end
 
-  def search(query) do
+  def get_posting(word, dict, lengths, file_pid) do
+    index = Map.get(dict, word)
+    {offset, length} = :array.get(index, lengths)
+
+    {:ok, posting} =
+      FileReader.read_specific_offset(file_pid, offset, length)
+
+    posting
+    |> Serialization.deserialize_posting()
+  end
+
+  def get_common_keys(maps) do
+    key_sets = Enum.map(maps, &MapSet.new(Map.keys(&1)))
+    common_keys = Enum.reduce(key_sets, &MapSet.intersection/2)
+    MapSet.to_list(common_keys)
+  end
+
+  def filter_maps_with_common_keys(maps) do
+    common_keys = get_common_keys(maps)
+
+    common_keys
+    |> Enum.map(fn key ->
+      {key,
+       Enum.reduce(maps, 0, fn map, acc ->
+         acc + Map.get(map, key, 0)
+       end)}
+    end)
+    |> Enum.into(%{})
+  end
+
+  def print_sorted_by_score(map, ids) do
+    map
+    # Convert the map to a list of {key, value} tuples
+    |> Enum.to_list()
+    # Sort by value in descending order
+    |> Enum.sort_by(&elem(&1, 1), &>=/2)
+    |> Enum.each(fn {key, value} ->
+      {id, _length} = :array.get(key, ids)
+      IO.puts("WSJ#{id} #{value}")
+    end)
+  end
+
+  def search(terms) do
     dict = deserialize_from_file(make_file_input_string("dict_serial"))
 
     lengths = deserialize_from_file(make_file_input_string("lengths"))
     ids = deserialize_ids(File.read!(make_file_input_string("ids")))
 
-    Enum.each(query, fn word ->
-      index = Map.get(dict, word)
-      {offset, length} = :array.get(index, lengths)
+    {:ok, file_pid} = File.open(make_file_input_string("serialized"), [:binary])
 
-      {:ok, posting} =
-        FileReader.read_specific_offset(make_file_input_string("serialized"), offset, length)
+    postings =
+      terms
+      |> Enum.map(&get_posting(&1, dict, lengths, file_pid))
 
-      posting =
-        posting
-        |> Serialization.deserialize_posting()
+    File.close(file_pid)
 
-      Enum.each(0..(:array.size(posting) - 1), fn index ->
-        {id, freq} = :array.get(index, posting)
-        id = :array.get(id, ids)
-        IO.inspect({id, freq})
-      end)
-    end)
+    filtered_maps = filter_maps_with_common_keys(postings)
+    print_sorted_by_score(filtered_maps, ids)
 
-    # IO.inspect(is_bitstring(posting))
+    # Enum.flat_map(Map.keys(posting), fn key ->
+    #   index = Map.get(dict, word)
 
-    # IO.inspect(posting, label: "posting")k
+    #   {offset, length} = :array.get(index, lengths)
 
-    # query
-    # |> String.split(" ")
-    # |> Enum.map(&String.trim/1)
-    # |> Enum.map(&String.downcase/1)
-    # |> Enum.map(fn word -> Map.get(dict, word) end)
-    # |> Enum.map(fn index -> :array.get(index, words) end)
-    # |> IO.inspect()
+    #   {:ok, posting} =
+    #     FileReader.read_specific_offset(make_file_input_string("serialized"), offset, length)
+
+    #   posting =
+    #     posting
+    #     |> Serialization.deserialize_posting()
+
+    #   {id, freq} = Map.get(posting, key)
+    #   {id, _length} = :array.get(id, ids)
+    #   IO.inspect({id, freq})
+    # end)
+
+    # File.close(file)
+
+    # Enum.each(0..(:array.size(posting) - 1), fn index ->
+    #   {id, freq} = :array.get(index, posting)
+    #   {id, _length} = :array.get(id, ids)
+
+    #   Enum.flat_map(tail, fn word ->
+    #     index = Map.get(dict, word)
+
+    #     if index == nil do
+    #       []
+    #     else
+    #       {offset, length} = :array.get(index, lengths)
+
+    #       {:ok, posting} =
+    #         FileReader.read_specific_offset(make_file_input_string("serialized"), offset, length)
+
+    #       posting =
+    #         posting
+    #         |> Serialization.deserialize_posting()
+
+    #       Enum.each(0..(:array.size(posting) - 1), fn index ->
+    #         {id, freq} = :array.get(index, posting)
+    #         {id, _length} = :array.get(id, ids)
+    #         IO.inspect({id, freq})
+    #       end)
+    #     end
+    #   end)
+    # end)
+
+    # Enum.each(tail, fn word ->
+    #   index = Map.get(dict, word)
+    #   {offset, length} = :array.get(index, lengths)
+
+    #   {:ok, posting} =
+    #     FileReader.read_specific_offset(make_file_input_string("serialized"), offset, length)
+
+    #   posting =
+    #     posting
+    #     |> Serialization.deserialize_posting()
+
+    #   Enum.each(0..(:array.size(posting) - 1), fn index ->
+    #     {id, freq} = :array.get(index, posting)
+    #     {id, _length} = :array.get(id, ids)
+    #     IO.inspect({id, freq})
+    #   end)
+    # end)
   end
 
   def setup do
