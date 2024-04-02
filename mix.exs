@@ -20,10 +20,20 @@ defmodule SearchEngine.MixProject do
   end
 
   defp escript_config do
+    {main_module, name} =
+      case System.get_env("MAIN_MODULE") do
+        "parser" -> {ParserMain, "parser"}
+        "indexer" -> {IndexerMain, "indexer"}
+        "search_engine" -> {SearchEngine, "search_engine"}
+        _ -> {SearchEngine, "search_engine"}
+      end
+
     [
-      main_module: SearchEngine,
-      start_permanent: Mix.env() == :prod,
-      # emu_args: ["+S"],
+      main_module: main_module,
+      start_permanent: :prod,
+      path: "./bin/#{name}",
+      strip_beams: true,
+      emu_args: ["+a", "8192", "+ssrct"],
       embed_elixir: true
     ]
   end

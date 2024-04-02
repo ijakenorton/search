@@ -2,14 +2,13 @@ defmodule SearchEngine do
   import FileHandling
   import Serialization
   @file_name "wsj"
-  def main(args) do
+  def main(_) do
     input =
       IO.read(:stdio, :all)
       |> String.split(" ")
       |> Enum.map(&String.downcase/1)
       |> Enum.map(&String.trim/1)
 
-    # IO.inspect(args)
     # setup()
     # Indexer.index()
 
@@ -81,71 +80,6 @@ defmodule SearchEngine do
 
     filtered_maps = filter_maps_with_common_keys(postings)
     print_sorted_by_score(filtered_maps, ids)
-
-    # Enum.flat_map(Map.keys(posting), fn key ->
-    #   index = Map.get(dict, word)
-
-    #   {offset, length} = :array.get(index, lengths)
-
-    #   {:ok, posting} =
-    #     FileReader.read_specific_offset(make_file_input_string("serialized"), offset, length)
-
-    #   posting =
-    #     posting
-    #     |> Serialization.deserialize_posting()
-
-    #   {id, freq} = Map.get(posting, key)
-    #   {id, _length} = :array.get(id, ids)
-    #   IO.inspect({id, freq})
-    # end)
-
-    # File.close(file)
-
-    # Enum.each(0..(:array.size(posting) - 1), fn index ->
-    #   {id, freq} = :array.get(index, posting)
-    #   {id, _length} = :array.get(id, ids)
-
-    #   Enum.flat_map(tail, fn word ->
-    #     index = Map.get(dict, word)
-
-    #     if index == nil do
-    #       []
-    #     else
-    #       {offset, length} = :array.get(index, lengths)
-
-    #       {:ok, posting} =
-    #         FileReader.read_specific_offset(make_file_input_string("serialized"), offset, length)
-
-    #       posting =
-    #         posting
-    #         |> Serialization.deserialize_posting()
-
-    #       Enum.each(0..(:array.size(posting) - 1), fn index ->
-    #         {id, freq} = :array.get(index, posting)
-    #         {id, _length} = :array.get(id, ids)
-    #         IO.inspect({id, freq})
-    #       end)
-    #     end
-    #   end)
-    # end)
-
-    # Enum.each(tail, fn word ->
-    #   index = Map.get(dict, word)
-    #   {offset, length} = :array.get(index, lengths)
-
-    #   {:ok, posting} =
-    #     FileReader.read_specific_offset(make_file_input_string("serialized"), offset, length)
-
-    #   posting =
-    #     posting
-    #     |> Serialization.deserialize_posting()
-
-    #   Enum.each(0..(:array.size(posting) - 1), fn index ->
-    #     {id, freq} = :array.get(index, posting)
-    #     {id, _length} = :array.get(id, ids)
-    #     IO.inspect({id, freq})
-    #   end)
-    # end)
   end
 
   def setup do

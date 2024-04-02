@@ -4,8 +4,6 @@ defmodule Parser do
   @token_regex ~r/[^a-zA-Z]+/
 
   def parse() do
-    IO.puts("Parsing...")
-
     documents =
       File.read!("./input/#{SearchEngine.file_name()}.xml")
       |> preprocess_docnos()
@@ -15,7 +13,6 @@ defmodule Parser do
       |> Enum.to_list()
       |> List.flatten()
 
-    IO.puts("Parsed")
     documents
   end
 
