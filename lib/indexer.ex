@@ -3,10 +3,9 @@ defmodule Indexer do
   import Serialization
 
   def index() do
+    IO.puts("setting up...")
+    {words, dict, docs} = setup()
     IO.puts("indexing...")
-
-    {words, dict, docs} = load_data()
-    IO.inspect(length(words), label: "words")
 
     postings = array_impl(docs, words, dict) |> tfidf()
 
@@ -43,7 +42,6 @@ defmodule Indexer do
   end
 
   def array_impl(docs, words, dict) do
-    # Initialize the postings array with empty lists
     postings = :array.new(length(words))
 
     postings =
@@ -51,7 +49,6 @@ defmodule Indexer do
         :array.set(index, [], acc)
       end)
 
-    # Update postings with document frequencies
     postings =
       Enum.with_index(docs)
       |> Enum.reduce(postings, fn {doc, doc_index}, acc ->
@@ -96,25 +93,36 @@ defmodule Indexer do
         :array.set(index, scores, acc)
       end)
 
-    IO.inspect(postings_out, label: "postings_out")
     postings_out
   end
 
-  def load_data() do
-    content = File.read!("./output/#{SearchEngine.file_name()}_dictionary.out")
+  def setup do
+    documents = Parser.parse()
+
+    ids_and_lengths =
+      Enum.map(documents, fn {id, doc} ->
+        {id, length(doc)}
+      end)
+
+    Parser.write_ids(ids_and_lengths)
 
     words =
-      String.split(content, "\n", trim: true)
+      documents
+      |> Enum.map(fn
+        {_id, words} ->
+          words
+      end)
+      |> List.flatten()
+      |> Enum.uniq()
+      |> Enum.sort()
 
     dict =
       words
       |> Enum.with_index()
       |> Enum.reduce(%{}, fn {element, index}, acc -> Map.put(acc, element, index) end)
 
-    docs =
-      deserialize_from_file("./output/#{SearchEngine.file_name()}_binary.out")
-      |> Enum.map(fn {_id, doc} -> doc end)
+    serialize_to_file(dict, make_file_input_string("dict_serial"))
 
-    {words, dict, docs}
+    {words, dict, documents}
   end
 end

@@ -1,32 +1,12 @@
 defmodule Serialization do
   @doc_bit_length 24
   @frequency_bit_length 32
-  def deserialize_postings(data) do
-    lengths = deserialize_from_file(FileHandling.make_file_input_string("lengths"))
-    words = File.read!(FileHandling.make_file_input_string("dictionary")) |> String.split("\n")
-    postings = :array.new(length(words))
-
-    Enum.reduce(0..(:array.size(postings) - 1), postings, fn index, acc ->
-      {offset, size} = :array.get(index, lengths)
-      posting = :binary.part(data, offset, size)
-      :array.set(index, deserialize_posting(posting), acc)
-    end)
-  end
-
   def deserialize_posting(posting) do
     do_deserialize_posting(
       posting,
       %{}
     )
   end
-
-  # def deserialize_posting(posting) do
-  #   do_deserialize_posting(
-  #     posting,
-  #     0,
-  #     :array.new(floor(bit_size(posting) / (@doc_bit_length + @frequency_bit_length)))
-  #   )
-  # end
 
   defp do_deserialize_posting(<<>>, map), do: map
 
@@ -37,16 +17,6 @@ defmodule Serialization do
     map = Map.put(map, doc_index, frequency)
     do_deserialize_posting(rest, map)
   end
-
-  # defp do_deserialize_posting(
-  #        <<doc_index::@doc_bit_length, frequency::float-@frequency_bit_length, rest::bitstring>>,
-  #        index,
-  #        array
-  #      ) do
-  #   combined = {doc_index, frequency}
-  #   array = :array.set(index, combined, array)
-  #   do_deserialize_posting(rest, index + 1, array)
-  # end
 
   def serialize_posting(posting) do
     Enum.reduce(posting, {[], 0}, fn {doc_index, frequency}, {acc, length} ->

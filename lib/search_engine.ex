@@ -1,7 +1,7 @@
 defmodule SearchEngine do
   import FileHandling
   import Serialization
-  @file_name "wsj"
+
   def main(_) do
     input =
       IO.read(:stdio, :all)
@@ -9,16 +9,6 @@ defmodule SearchEngine do
       |> Enum.map(&String.downcase/1)
       |> Enum.map(&String.trim/1)
 
-    # setup()
-    # Indexer.index()
-
-    # index =
-    #   File.read!(make_file_input_string("serialized"))
-    #   |> Serialization.deserialize_postings()
-
-    # IO.inspect(index, label: "index")
-
-    # IO.inspect(:array.get(0, index))
     search(input)
   end
 
@@ -54,13 +44,11 @@ defmodule SearchEngine do
 
   def print_sorted_by_score(map, ids) do
     map
-    # Convert the map to a list of {key, value} tuples
     |> Enum.to_list()
-    # Sort by value in descending order
     |> Enum.sort_by(&elem(&1, 1), &>=/2)
     |> Enum.each(fn {key, value} ->
       {id, _length} = :array.get(key, ids)
-      IO.puts("WSJ#{id} #{value}")
+      IO.puts("#{id} #{value}")
     end)
   end
 
@@ -81,29 +69,4 @@ defmodule SearchEngine do
     filtered_maps = filter_maps_with_common_keys(postings)
     print_sorted_by_score(filtered_maps, ids)
   end
-
-  def setup do
-    documents = Parser.parse()
-
-    ids_and_lengths =
-      Enum.map(documents, fn {id, doc} ->
-        {String.slice(id, 3, String.length(id)) |> String.trim(), length(doc)}
-      end)
-
-    Parser.write_parsed_and_dict_to_file(documents)
-    Parser.write_ids(ids_and_lengths)
-    content = File.read!("./output/#{SearchEngine.file_name()}_dictionary.out")
-
-    words =
-      String.split(content, "\n", trim: true)
-
-    dict =
-      words
-      |> Enum.with_index()
-      |> Enum.reduce(%{}, fn {element, index}, acc -> Map.put(acc, element, index) end)
-
-    serialize_to_file(dict, make_file_input_string("dict_serial"))
-  end
-
-  def file_name, do: @file_name
 end

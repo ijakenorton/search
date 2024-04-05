@@ -33,7 +33,7 @@ defmodule SearchEngine.MixProject do
       start_permanent: :prod,
       path: "./bin/#{name}",
       strip_beams: true,
-      emu_args: ["+a", "8192", "+ssrct"],
+      emu_args: ["+a", "8192", "+ssrct", "+hms", "8192"],
       embed_elixir: true
     ]
   end

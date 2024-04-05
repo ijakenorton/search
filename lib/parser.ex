@@ -1,11 +1,12 @@
 defmodule Parser do
+  import FileHandling
   import Serialization
   @docno_regex ~r/<DOCNO>\s*([^<]*)/i
   @token_regex ~r/[^a-zA-Z]+/
 
   def parse() do
     documents =
-      File.read!("./input/#{SearchEngine.file_name()}.xml")
+      File.read!("./input/#{file_name()}.xml")
       |> preprocess_docnos()
       |> String.split(~r/<\s*DOC\s*>/, trim: true)
       |> Flow.from_enumerable()
@@ -54,10 +55,10 @@ defmodule Parser do
 
   def write_parsed_and_dict_to_file(documents) do
     IO.puts("writing to file....")
-    {:ok, parsed_fd} = File.open("./output/#{SearchEngine.file_name()}_parsed.out", [:write])
+    {:ok, parsed_fd} = File.open("./output/#{file_name()}_parsed.out", [:write])
 
     {:ok, dictionary_fd} =
-      File.open("./output/#{SearchEngine.file_name()}_dictionary.out", [:write])
+      File.open("./output/#{file_name()}_dictionary.out", [:write])
 
     dictionary =
       documents
@@ -72,7 +73,7 @@ defmodule Parser do
 
     IO.write(dictionary_fd, Enum.join(dictionary, "\n"))
 
-    Serialization.serialize_to_file(documents, "./output/#{SearchEngine.file_name()}_binary.out")
+    Serialization.serialize_to_file(documents, "./output/#{file_name()}_binary.out")
     File.close(parsed_fd)
     File.close(dictionary_fd)
   end
