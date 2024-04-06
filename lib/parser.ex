@@ -4,9 +4,11 @@ defmodule Parser do
   @docno_regex ~r/<DOCNO>\s*([^<]*)/i
   @token_regex ~r/[^a-zA-Z]+/
 
-  def parse() do
+  def parse(input_file) do
+    input_file = if input_file == [], do: "./#{FileHandling.file_name()}.xml", else: input_file
+
     documents =
-      File.read!("./input/#{file_name()}.xml")
+      File.read!(input_file)
       |> preprocess_docnos()
       |> String.split(~r/<\s*DOC\s*>/, trim: true)
       |> Flow.from_enumerable()

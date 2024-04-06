@@ -26,4 +26,5 @@ search_engine-*.tar
 /tmp/
 /output/
 /input/
+wsj.xml
 /bin/

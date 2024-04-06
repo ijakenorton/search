@@ -97,11 +97,11 @@ defmodule Indexer do
   end
 
   def setup do
-    documents = Parser.parse()
+    documents = Parser.parse([])
 
     ids_and_lengths =
       Enum.map(documents, fn {id, doc} ->
-        {id, length(doc)}
+        {String.slice(id, 3, String.length(id)) |> String.trim(), length(doc)}
       end)
 
     Parser.write_ids(ids_and_lengths)
@@ -123,6 +123,6 @@ defmodule Indexer do
 
     serialize_to_file(dict, make_file_input_string("dict_serial"))
 
-    {words, dict, documents}
+    {words, dict, documents |> Enum.map(fn {_id, doc} -> doc end)}
   end
 end

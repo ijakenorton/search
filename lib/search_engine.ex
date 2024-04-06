@@ -48,7 +48,7 @@ defmodule SearchEngine do
     |> Enum.sort_by(&elem(&1, 1), &>=/2)
     |> Enum.each(fn {key, value} ->
       {id, _length} = :array.get(key, ids)
-      IO.puts("#{id} #{value}")
+      IO.puts("WSJ#{id} #{value}")
     end)
   end
 
