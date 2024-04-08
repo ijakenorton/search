@@ -37,15 +37,15 @@ defmodule Parser do
     |> Enum.flat_map(fn word ->
       case word do
         "" -> []
-        "DOC" -> []
-        "DOCNO" -> []
-        "WSJ" -> []
-        "HL" -> []
-        "DD" -> []
-        "SO" -> []
-        "IN" -> []
-        "DATELINE" -> []
-        "TEXT" -> []
+        # "DOC" -> []
+        # "DOCNO" -> []
+        # "WSJ" -> []
+        # "HL" -> []
+        # "DD" -> []
+        # "SO" -> []
+        # "IN" -> []
+        # "DATELINE" -> []
+        # "TEXT" -> []
         _ -> [String.downcase(word)]
       end
     end)

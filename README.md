@@ -51,7 +51,9 @@ These are compiled with the elixir runtime built in.
 ## To Run
 
 To run simple run the executable
+Default will parse file `./wsj.xml` otherwise pass the file path to ./bin/parser as the first cmdline arg
  `./bin/parser`
+
  `./bin/indexer`
 For the search_engine an example run would be
 ```
