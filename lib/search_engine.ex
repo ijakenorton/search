@@ -3,13 +3,12 @@ defmodule SearchEngine do
   import Serialization
 
   def main(_) do
-    input =
-      IO.read(:stdio, :all)
-      |> String.split(" ")
-      |> Enum.map(&String.downcase/1)
-      |> Enum.map(&String.trim/1)
-
-    search(input)
+    Enum.each(IO.stream(), fn line ->
+      line
+      |> String.downcase
+      |> String.split
+      |> search
+    end)
   end
 
   def get_posting(word, dict, lengths, file_pid) do
