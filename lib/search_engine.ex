@@ -4,7 +4,7 @@ defmodule SearchEngine do
 
   def main(_) do
     input =
-      IO.read(:stdio, :all)
+      IO.read(:stdio, :eof)
       |> String.split(" ")
       |> Enum.map(&String.downcase/1)
       |> Enum.map(&String.trim/1)
@@ -12,8 +12,7 @@ defmodule SearchEngine do
     search(input)
   end
 
-  def get_posting(word, dict, lengths, file_pid) do
-    index = Map.get(dict, word)
+  def get_posting(index, lengths, file_pid) do
     {offset, length} = :array.get(index, lengths)
 
     {:ok, posting} =
@@ -59,10 +58,11 @@ defmodule SearchEngine do
     ids = deserialize_ids(File.read!(make_file_input_string("ids")))
 
     {:ok, file_pid} = File.open(make_file_input_string("serialized"), [:binary])
+    indexs = terms |> Enum.map(&Map.get(dict, &1)) |> Enum.filter(fn x -> x != nil end)
 
     postings =
-      terms
-      |> Enum.map(&get_posting(&1, dict, lengths, file_pid))
+      indexs
+      |> Enum.map(&get_posting(&1, lengths, file_pid))
 
     File.close(file_pid)
 
