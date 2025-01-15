@@ -3,20 +3,37 @@ defmodule SearchEngine do
   import Serialization
 
   def main(_) do
-    input =
-      IO.read(:stdio, :eof)
-      |> String.split(" ")
-      |> Enum.map(&String.downcase/1)
-      |> Enum.map(&String.trim/1)
+    dict = deserialize_from_file(make_file_input_string("dict_serial"))
+    lengths = deserialize_from_file(make_file_input_string("lengths"))
+    ids = deserialize_ids(File.read!(make_file_input_string("ids")))
+    {:ok, file_pid} = File.open(make_file_input_string("serialized"), [:binary])
 
-    search(input)
+    Enum.each(IO.stream(), fn line ->
+      line =
+        line
+        |> String.downcase()
+        |> String.split()
+
+      IO.inspect(line)
+
+      line
+      |> search(dict, lengths, ids, file_pid)
+    end)
+
+    File.close(file_pid)
   end
 
   def get_posting(index, lengths, file_pid) do
     {offset, length} = :array.get(index, lengths)
+    IO.inspect(index, label: "index")
+    IO.inspect(offset, label: "offset")
+    IO.inspect(length, label: "length")
 
-    {:ok, posting} =
-      FileReader.read_specific_offset(file_pid, offset, length)
+    # {:ok, posting} =
+    posting = FileReader.read_specific_offset(file_pid, offset, length)
+    IO.inspect(posting)
+
+    {:ok, posting} = posting
 
     posting
     |> Serialization.deserialize_posting()
@@ -51,22 +68,32 @@ defmodule SearchEngine do
     end)
   end
 
-  def search(terms) do
-    dict = deserialize_from_file(make_file_input_string("dict_serial"))
+  def search(terms, dict, lengths, ids, file_pid) do
+    case terms do
+      [] ->
+        nil
 
-    lengths = deserialize_from_file(make_file_input_string("lengths"))
-    ids = deserialize_ids(File.read!(make_file_input_string("ids")))
+      nil ->
+        nil
 
-    {:ok, file_pid} = File.open(make_file_input_string("serialized"), [:binary])
-    indexs = terms |> Enum.map(&Map.get(dict, &1)) |> Enum.filter(fn x -> x != nil end)
+      _ ->
+        indexs =
+          terms
+          |> Enum.map(&Map.get(dict, &1))
+          |> Enum.filter(fn x -> x != nil end)
 
-    postings =
-      indexs
-      |> Enum.map(&get_posting(&1, lengths, file_pid))
+        case indexs do
+          [] ->
+            nil
 
-    File.close(file_pid)
+          _ ->
+            postings =
+              indexs
+              |> Enum.map(&get_posting(&1, lengths, file_pid))
 
-    filtered_maps = filter_maps_with_common_keys(postings)
-    print_sorted_by_score(filtered_maps, ids)
+            filter_maps_with_common_keys(postings)
+            |> print_sorted_by_score(ids)
+        end
+    end
   end
 end

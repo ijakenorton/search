@@ -55,7 +55,8 @@ defmodule Serialization do
   end
 
   def deserialize_from_file(file_path) do
-    {:ok, binary_data} = File.read(file_path)
+    file = File.read(file_path)
+    {:ok, binary_data} = file
     :erlang.binary_to_term(binary_data)
   end
 end
